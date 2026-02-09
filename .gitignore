@@ -6,7 +6,6 @@ venv/
 *.db
 *.sqlite3
 
-docs/
 
 # Node.js系
 node_modules/
