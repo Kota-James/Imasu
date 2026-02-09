@@ -1,0 +1,14 @@
+# Python系
+__pycache__/
+*.py[cod]
+venv/
+.env
+*.db
+*.sqlite3
+
+docs/
+
+# Node.js系
+node_modules/
+dist/
+.DS_Store
