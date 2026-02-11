@@ -29,9 +29,13 @@ class User(_UserBase):  # output
     nfc_card_id: str | None = None
 
     # system
-    status: bool
+    status: str
     is_deleted: bool
     date_created: _dt.datetime
     date_last_updated: _dt.datetime
     
     model_config = _pydantic.ConfigDict(from_attributes=True)
+
+class Token(_pydantic.BaseModel):
+    access_token: str
+    token_type: str
