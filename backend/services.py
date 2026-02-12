@@ -77,3 +77,15 @@ def get_current_user(
         )
     
     return user
+
+
+def update_user_profile(db: _orm.Session, user: _models.User, user_update: _schemas.UserProfileUpdate):
+    if user_update.display_name is not None:
+        user.display_name = user_update.display_name    
+    if user_update.color_code is not None:
+        user.color_code = user_update.color_code
+
+    db.commit()
+    db.refresh(user)
+
+    return user

@@ -35,3 +35,13 @@ def generate_token(
 @app.get("/api/users/me", response_model=_schemas.User)
 def get_user(user: _schemas.User = _fastapi.Depends(_services.get_current_user)):
     return user
+
+@app.put("/api/users/me", response_model=_schemas.User)
+def update_user_profile(
+        user_update: _schemas.UserProfileUpdate, 
+        db: _orm.Session = _fastapi.Depends(_services.get_db), 
+        current_user: _schemas.User = _fastapi.Depends(_services.get_current_user), 
+    ):
+    pass
+    return _services.update_user_profile(db=db, user=current_user, user_update=user_update)
+

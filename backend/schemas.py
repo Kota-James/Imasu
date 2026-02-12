@@ -9,13 +9,13 @@ class _UserBase(_pydantic.BaseModel):
 class UserCreate(_UserBase):    # creating account
     password: str
 
-class UserBaseUpdate(_pydantic.BaseModel):  # registering prifile, and another info
+class UserProfileUpdate(_pydantic.BaseModel):
     display_name: str | None = None
-    original_id: str | None = None
-    role: str | None = None
     color_code: str | None = None
-    nfc_card_id: str | None = None
-    is_deleted: bool | None = None
+
+class UserSystemUpdate(_pydantic.BaseModel):
+    original_id: str | None = None   # 学籍番号など
+    nfc_card_id: str | None = None   # カードID
 
 ### Output Schemas
 class User(_UserBase):  # output
@@ -39,3 +39,5 @@ class User(_UserBase):  # output
 class Token(_pydantic.BaseModel):
     access_token: str
     token_type: str
+
+
