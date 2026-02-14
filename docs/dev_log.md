@@ -1,311 +1,158 @@
-# Imasu - サークル向け入退室管理アプリ (Backend)
+# 入退室管理アプリImasuの開発ログ
 
----
+## 2026-02-14: 入退室ログ機能の実装とステータス連動、API設計のRESTful化
 
-## 1. プロジェクト概要
+### 1. 実装概要
+* **機能:** * ユーザーの入退室ログ（Log）の作成および取得機能を追加。
+  * ログのアクション（入室・退室など）に伴う、ユーザーの現在ステータス（in/out/away）の自動更新処理を実装。
+  * 絞り込み条件を用いた汎用的なユーザー一覧取得機能の実装。
 
-> **「今、誰が部室にいるかわからない」**
+### 2. APIエンドポイントの設計と最適化
+* **ログ関連エンドポイントの統一:**
+  * `POST /api/users/me/logs`: ログインユーザーのログを作成。
+  * `GET /api/users/me/logs`: ログインユーザーのログ一覧を取得。
+  * ※「データのリソース（場所）」と「HTTPメソッド（行動）」を切り分けるRESTfulの思想に基づき、GETとPOSTで同一のURLを採用。
+* **ユーザー一覧取得機能のRESTful化:**
+  * 当初 `GET /api/get_in_users` として実装した機能を、汎用的な `GET /api/users` へリファクタリング。
+  * クエリパラメータ（`?status=in` 等）を導入し、1つのエンドポイントで「全員取得」から「ステータスごとの絞り込み」まで柔軟に対応できる構造に変更。
 
-本プロジェクトは、所属サークルにおける実際の組織運営上の課題を解決するために開発した  
-**WebアプリケーションのバックエンドAPI**です。
+### 3. ビジネスロジックの改善（ステータス自動連動）
+* **辞書（マッピング）を活用したロジックの簡略化:**
+  * ログ作成時、送られてきた `action` (Enter, exit, go_out, return) を `status` (in, out, away) に変換する `status_map`（対応表）を導入。
+  * 冗長な `if-elif` 文を排除し、拡張性と保守性の高いコードを実現。
+* **トランザクションの安全性確保:**
+  * 「ログの新規追加」と「ユーザー情報のステータス上書き」という2つのDB操作を、最後に1回の `db.commit()` で同時に確定する設計を採用。不整合データの発生を防止。
 
-- FastAPIチュートリアルで学んだ基礎をベースに開発
-- 要件定義・DB設計・API設計をすべてゼロから実施
-- 実際のサークル運営を想定した実用的なユースケース
+### 4. トラブルシューティング履歴
+* **FastAPIの引数順序ルール:**
+  * エンドポイント関数において「デフォルト値を持たない引数（Pydanticスキーマ等）」は「デフォルト値を持つ引数（`Depends`等）」より先に記述しなければならないPythonの言語仕様を学習・適用。
+* **Pydantic Validation Error (スペルミス):**
+  * DBモデル側（`date_last_updated_log`）とスキーマ側（`date_last_update_log`）の命名不一致によりバリデーションエラーが発生。スキーマ側のプロパティ名を修正して解決。
 
-現在は **MVP（Minimum Viable Product）** として、以下にフォーカスしています。
 
-- 入退室記録の管理
-- 在室状況のリアルタイム可視化
 
----
+## 2026-02-12(Day4): ユーザー情報更新機能の実装とAPI設計の最適化
 
-## 2. 実装機能と技術スタック
+### 1. 実装概要
+* **機能:** ログイン中のユーザー自身によるプロフィール情報（表示名、テーマカラー）の更新。
+* **メソッド:** `PUT` メソッドを採用（リソースの更新）。
+* **エンドポイント設計:**
+    * プロフィール情報（名前、色など）と、システム情報（学籍番号、NFC IDなど）の更新口を分離する設計方針を決定。
 
-### ■ 主要機能
+### 2. 環境・構成の修正
+* **ディレクトリ構成:** `backend/__init__.py` を削除。
+    * 理由: `fastapi dev` コマンド等がパッケージ構成を誤認し、インポートエラーを引き起こすのを防ぐため。
 
-### 1. ユーザー認証・管理
+### 3. API設計とセキュリティ対策
+* **レスポンスのフィルタリング (重要):**
+    * `main.py` のデコレータに `response_model=_schemas.User` を明示的に指定。
+    * `schemas.py` の `User` クラスから `hashed_password` を除外。
+    * これにより、DBオブジェクトにはパスワードが含まれていても、APIレスポンスの時点で自動的に削除される安全な構成を確立。
+* **Pydantic V2対応:**
+    * Swagger UI 上で `client_id` や `grant_type` 等が表示されるのは仕様であることを確認（無視して運用）。
+    * `UserBaseUpdate` 等のスキーマで `str | None = None` を使用し、送信されなかった項目は更新しない（None）柔軟な設計を採用。
 
-- JWT（JSON Web Token）によるステートレス認証
-- ユーザー登録・プロフィール更新
-- ロール管理（admin / user）
 
----
+## 2026-02-11(Day3)
+### 1. 実装概要
+* **機能:** ユーザー登録、ログイン（トークン発行）、現在ログイン中のユーザー取得。
+* **方式:** JWT (JSON Web Token) を利用したステートレス認証。
+* **セキュリティ:**
+    * パスワードは `bcrypt` でハッシュ化して保存。
+    * トークンには `id` と `email` のみを含め、有効期限を30日に設定（サークルアプリの利便性重視）。
+    * アルゴリズムは `HS256` を明示的に指定。
 
-### 2. 入退室ログ管理（CRUD）
-
-- アクション記録  
-  - `enter`
-  - `exit`
-  - `go_out`
-  - `return`
-- 自身のログ履歴取得
-
----
-
-### 3. ステータス自動連動
-
-- ログ作成と同時にユーザーステータスを更新
-  - `in`
-  - `out`
-  - `away`
-- ビジネスロジック層で一元管理
-
----
-
-### 4. 柔軟なユーザー検索
-
-- クエリパラメータによるフィルタリング取得
-  - 例：`GET /api/users?status=in`
-
----
-
-## 技術スタック
-
-- **Language**
-  - Python 3.12
-
-- **Framework**
-  - FastAPI
-
-- **Database**
-  - SQLite（開発環境）
-  - SQLAlchemy（ORM）
-  - Alembic（Migration）
-
-- **Validation**
-  - Pydantic V2
-
-- **Authentication**
-  - PyJWT
-  - passlib[bcrypt]
-
-- **Frontend**
-  - React（MVP構成）
-
-- **開発環境**
-  - Windows 11
-  - WSL2（Ubuntu 24.04）
-
----
-
-## 3. データベース設計（ER図）
-
-### ■ 設計方針
-
-- USERS と LOGS は **1対多**
-- ユーザーは複数のログを保持
-
-```mermaid
-erDiagram
-    USERS ||--o{ LOGS : "has"
-
-    USERS {
-        int id PK "primary key, auto increment"
-        string email "unique, indexed"
-        string hashed_password
-        string original_id "indexed"
-        string display_name "indexed"
-
-        string role "default='user' (master/admin/user)"
-        string status "default='out' (in/out/away), indexed"
-        string color_code "default='#3b82f6'"
-        string nfc_card_id "unique, indexed, nullable"
-        boolean is_deleted "default=false (logical delete)"
-
-        datetime date_created "timezone, server_default=now()"
-        datetime date_last_updated "timezone, auto update"
-    }
-
-    LOGS {
-        int id PK "primary key"
-        int owner_id FK "references users.id"
-
-        string action "indexed (enter/exit/go_out/return)"
-        string place "indexed, default=''"
-        string note "default=''"
-
-        datetime date_created_log "timezone, server_default=now()"
-        datetime date_last_updated_log "timezone, auto update"
-    }
+#### 2. 依存ライブラリのバージョン固定 (重要)
+`passlib` と最新の `bcrypt` (v4.0+) の相性問題により `AttributeError` が発生するため、`bcrypt` のバージョンを固定。
+```bash
+pip uninstall bcrypt
+pip install "bcrypt==3.2.0"
 ```
 
 
----
 
-## 4. 技術的工夫・トラブルシューティング
 
-### 1. RESTful設計へのリファクタリング
+### 2026-02-10(Day2)
+### 1. データベース設計 (models.py)
 
-初期設計：
-```
-GET /api/get_in_users
-```
+#### 設計のポイント
+1.  **SQLite + SQLAlchemy** を採用。
+    * 将来的な拡張（PostgreSQL等への移行）を見越し、ORMを利用。
+2.  **ユーザー状態管理 (`status`) の導入**
+    * **「在室中(in) / 帰宅(out)」** を管理する専用カラムを作成。
+    * これにより、リアルタイムな在室状況の取得を高速化（`status="in"` で検索可能）。
+3.  **ログ管理 (`action`) の明確化**
+    * ユーザーの状態と区別するため、カラム名を `status` から `action` に変更。
+    * 値は可読性を重視し、整数ではなく文字列（"enter", "exit" 等）を採用。
+4.  **セキュリティと利便性のバランス**
+    * パスワードはハッシュ化（`bcrypt`）。
+    * 学籍番号（`original_id`）や学生証ID（`nfc_card_id`）は**平文保存**し、検索・デバッグを容易に。
+    * パスワード検証ロジックをモデル内にカプセル化（`verify_password`）。
+5.  **日時管理の自動化**
+    * `func.now()` を使用し、DBサーバー側で作成日時・更新日時を自動管理。
 
-改善後：
-```
-GET /api/users?status=in
-```
+### 2. Pydanticスキーマ設計 (schemas.py)
 
-改善ポイント：
+#### 設計のポイント
+* **2段階登録フローへの対応**
+    * `UserCreate`: アカウント作成用（メール・パスワードのみ）。
+    * `UserBaseUpdate`: プロフィール登録・更新用（表示名、学籍番号など）。
+    * これにより、「まずは登録 → 後から情報入力」という柔軟なUXを実現。
+* **更新用スキーマの独立定義**
+    * `UserBase` を継承せず、全フィールドを `Optional (str | None)` で定義。
+    * `email` 等の変更不可項目を含めないことで、セキュリティを向上（Partial Updateの実現）。
+* **出力用スキーマの整合性**
+    * DB上のカラム（`role`, `color_code` 等）にはデフォルト値があるため、出力時は `Optional` ではなく必須項目（`str`）として定義。
+    * 不要な `is_active` フィールドを削除し、代わりに `status` フィールドを追加してモデルとの整合性を確保。
 
-- 動詞を排除しリソース指向へ変更
-- 単一エンドポイントで汎用的な取得を実現
-- 拡張性の向上
 
----
-
-### 2. トランザクション設計による整合性確保
-
-課題：
-
-- ログ追加
-- ユーザーステータス更新
-
-2つのDB操作が存在。
-
-対策：
-
-- 最後に1回の `db.commit()` を実行
-- トランザクション単位で確定
-- データ不整合を防止
-
----
-
-### 3. Pydantic V2によるレスポンス安全化
-
-- `response_model` を明示指定
-- パスワード等の機密情報を自動除外
-- ORM → Schema 変換時に安全性担保
-
----
-
-### 4. bcrypt バージョン競合問題
-
-発生問題：
-
-- `passlib` と `bcrypt v4.0+` の互換性問題
-- `AttributeError` 発生
-
-解決策：
-
-- `bcrypt==3.2.0` に固定
-- 依存バージョンを明示管理
-
----
-
-## 5. ディレクトリ構成
+## 2026-02-09(Day1)
+gitignore, backend 作成  
+前回のAwesome Lead Managerでは動画公開時のバージョンに固定することで、動画と同じ書き方をしてもエラーが出ないようにしていたが、今回は今後のことも考えて最新版で作成することにした。
 
 ```bash
-web-app/
-├── backend/
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── services.py
-│   ├── schemas.py
-│   ├── .env.example
-│   └── requirements.txt
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   └── App.js
-    └── package.json
-```
-
----
-
-## 6. セットアップ方法
-
-### バックエンド（ローカル環境）
-
-```bash
-# 1. 移動
-cd backend
-
-# 2. 仮想環境
 python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# 3. 依存インストール
-pip install -r requirements.txt
-
-# 4. 環境変数設定
-# .env.example をコピーして .env を作成
-
-# 5. マイグレーション
-alembic upgrade head
-
-# 6. サーバー起動
-fastapi dev main.py
+pip install "fastapi[standard]" sqlalchemy alembic pydantic-settings python-dotenv passlib[bcrypt] pyjwt
 ```
 
-Swagger UI:
+### schemas.pyについて
+- 継承で楽をしている
+- フロントエンドから入ってくるデータと、フロントエンドへ出力するデータで構造を分けている。
+    - 例えば、ユーザ登録のときに送られてくるのは**email**と**hashed_password**で、未登録だから{id}はない
+    - 逆にフロントエンドに戻すときはパスワードを送る必要はないから**email**と**id**を送る
+- SQLAlchemyのオブジェクト（クラス形式のデータ）```data['id']```を、Pydanticが解釈可能な形式```data.id```に自動翻訳するためのスイッチが必要  
+**Pydantic V1とV2では書き方が違う**  
+ex. V1
+```python
+class User(_UserBase):
+    id: int
+
+    class Config:
+        orm_mode = True
 ```
-http://localhost:8000/docs
+ex. V2
+```python
+model_config = ConfigDict(from_attributes=True)
 ```
 
----
+### model.pyでのプロトタイプからの変更点
 
-## 7. Roadmap（今後の展望）
+### 変更点・設計判断
+1.  **Userモデル: `original_id` の型変更**
+    * **変更前:** `Integer`
+    * **変更後:** `String`
+    * **理由:** 学籍番号（例: `1X99...`）や社員番号など、アルファベットが含まれる場合や先頭が `0` で始まる番号に対応するため。
 
----
+2.  **Userモデル: `display_name` の制約緩和**
+    * **変更:** `unique=True` を削除（推奨）
+    * **理由:** 同姓同名ユーザーや、同じニックネームを使用したいユーザーが登録できなくなるのを防ぐため。
 
-### ■ 短期目標
-
-#### 1. Discord Webhook連携
-
-- 入退室ログ作成時に自動通知
-- アプリを開かなくても在室状況確認可能
-
----
-
-#### 2. RBAC（Role Based Access Control）
-
-- admin専用管理画面
-- 打刻修正機能
-- ユーザー管理機能
-
----
-
-### ■ 中長期目標
-
-#### 1. マルチテナント化（グループ機能）
-
-- 複数団体対応
-- サークル / ゼミ / 研究室対応
-- プラットフォーム化
-
----
-
-#### 2. ダッシュボード・統計機能
-
-- 個人活動時間の可視化
-- 混雑時間帯の分析
-- モチベーション向上
-
----
-
-#### 3. IoT連携（Raspberry Pi + NFC）
-
-- ICカードタッチで打刻
-- ログイン不要
-- UX向上
-
----
-
-#### 4. 不正打刻防止（ネットワーク制限）
-
-- 部室Wi-Fi経由のみ受付
-- IP制限導入
-- エア入室防止
-
----
-
-## 8. プロジェクト情報
-
-- **Author**
-  - Kota-James
-
-- **GitHub**
-  - https://github.com/Kota-James
+3.  **Logモデル: 日時管理の最適化**
+    * **変更前:** Python側の `datetime.utcnow` を使用
+    * **変更後:** SQLAlchemyの `func.now()` を使用（`server_default`, `onupdate`）
+    * **理由:**
+        * Python 3.12以降の `datetime.utcnow` 非推奨警告を回避するため。
+        * DBサーバーの時刻を正とし、タイムゾーンのブレを防ぐため。
+        * `onupdate` により、レコード更新時に自動的に `date_last_updated` が書き換わるようにするため。

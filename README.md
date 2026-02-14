@@ -1,111 +1,196 @@
 # Imasu - サークル向け入退室管理アプリ (Backend)
 
+---
+
 ## 1. プロジェクト概要
 
 > 「今、誰が部室にいるかわからない」
 
-本プロジェクトは、所属サークルにおける実際の組織運営上の課題を解決するために開発したWebアプリケーションのバックエンドAPIです。  
-以前、チュートリアル（見込み顧客管理アプリ）で学んだFastAPIの基礎知識をベースにしつつ、今回は要件定義・データベース設計・API設計の全てをゼロから自身のユースケースに合わせて構築しました。
+本プロジェクトは、所属サークルにおける実際の組織運営上の課題を解決するために開発した  
+**WebアプリケーションのバックエンドAPI**です。
 
-現在はMVP（Minimum Viable Product）として、入退室記録と在室状況の可視化に焦点を絞って実装しています。
+- FastAPIチュートリアルで学んだ基礎をベースに開発
+- 要件定義・DB設計・API設計をすべてゼロから実施
+- 実際のサークル運営を想定した実用的なユースケース
 
----
+現在は **MVP（Minimum Viable Product）** として、以下にフォーカスしています。
 
-## 2. 実装した機能と技術スタック
-
-### 主要機能
-
-#### ユーザー認証・管理
-- JWT (JSON Web Token) を用いたステートレス認証
-- ユーザープロフィールの登録・更新
-
-#### 入退室ログ管理 (CRUD)
-- ユーザーの入退室アクション（Enter, Exit, Go Out, Return）の記録
-- 自身のログ履歴の取得
-
-#### ステータス自動連動
-- 打刻ログの作成と同時に、ユーザーの現在ステータス（in / out / away）を自動更新するビジネスロジックの実装
-
-#### 柔軟なユーザー検索
-- クエリパラメータを用いた在室者（status=in）のフィルタリング取得
+- 入退室記録の管理
+- 在室状況のリアルタイム可視化
 
 ---
 
-### 技術スタック
+## 2. 実装機能と技術スタック
 
-- **Language:** Python 3.12  
-- **Framework:** FastAPI  
-- **Database:** SQLite (Dev), SQLAlchemy (ORM), Alembic (Migration)  
-- **Validation:** Pydantic V2  
-- **Authentication:** PyJWT, passlib[bcrypt]  
-- **Frontend:** React (MVP構成)  
-- **Dev Environment:** Windows 11 + WSL2 (Ubuntu 24.04)
+### ■ 主要機能
+
+### 1. ユーザー認証・管理
+
+- JWT（JSON Web Token）によるステートレス認証
+- ユーザー登録・プロフィール更新
+- ロール管理（admin / user）
 
 ---
 
-## 3. データベース設計 (ER図)
+### 2. 入退室ログ管理（CRUD）
 
-ユーザー (users) が複数のログ (logs) を持つ **1対多** の関係で設計しています。
+- アクション記録  
+  - `enter`
+  - `exit`
+  - `go_out`
+  - `return`
+- 自身のログ履歴取得
+
+---
+
+### 3. ステータス自動連動
+
+- ログ作成と同時にユーザーステータスを更新
+  - `in`
+  - `out`
+  - `away`
+- ビジネスロジック層で一元管理
+
+---
+
+### 4. 柔軟なユーザー検索
+
+- クエリパラメータによるフィルタリング取得
+  - 例：`GET /api/users?status=in`
+
+---
+
+## 技術スタック
+
+- **Language**
+  - Python 3.12
+
+- **Framework**
+  - FastAPI
+
+- **Database**
+  - SQLite（開発環境）
+  - SQLAlchemy（ORM）
+  - Alembic（Migration）
+
+- **Validation**
+  - Pydantic V2
+
+- **Authentication**
+  - PyJWT
+  - passlib[bcrypt]
+
+- **Frontend**
+  - React（MVP構成）
+
+- **開発環境**
+  - Windows 11
+  - WSL2（Ubuntu 24.04）
+
+---
+
+## 3. データベース設計（ER図）
+
+### ■ 設計方針
+
+- USERS と LOGS は **1対多**
+- ユーザーは複数のログを保持
 
 ```mermaid
 erDiagram
     USERS ||--o{ LOGS : "has"
+
     USERS {
-        int id PK
-        string email
+        int id PK "primary key, auto increment"
+        string email "unique, indexed"
         string hashed_password
-        string original_id "学籍番号など(String型)"
-        string display_name
-        string status "in / out / away"
-        string role "admin / user"
-        datetime date_created
+        string original_id "indexed"
+        string display_name "indexed"
+
+        string role "default='user' (master/admin/user)"
+        string status "default='out' (in/out/away), indexed"
+        string color_code "default='#3b82f6'"
+        string nfc_card_id "unique, indexed, nullable"
+        boolean is_deleted "default=false (logical delete)"
+
+        datetime date_created "timezone, server_default=now()"
+        datetime date_last_updated "timezone, auto update"
     }
+
     LOGS {
-        int id PK
-        int user_id FK
-        string action "enter / exit / go_out / return"
-        datetime date_created
-        datetime date_last_updated
+        int id PK "primary key"
+        int owner_id FK "references users.id"
+
+        string action "indexed (enter/exit/go_out/return)"
+        string place "indexed, default=''"
+        string note "default=''"
+
+        datetime date_created_log "timezone, server_default=now()"
+        datetime date_last_updated_log "timezone, auto update"
     }
 ```
 
----
-
-## 4. 技術的な工夫・トラブルシューティング
-
-単に動くものを作るだけでなく、保守性や拡張性、安全性を考慮して以下の設計・対応を行いました。
-
-### API設計のリファクタリング（RESTfulの徹底）
-
-開発当初は `GET /api/get_in_users` という動詞を含んだエンドポイントを作成していましたが、リソース指向の設計原則に基づきリファクタリングを行いました。  
-
-現在は  
-
-`GET /api/users?status=in`  
-
-という形で、一つのエンドポイントで「全ユーザー取得」と「フィルタリング取得」を柔軟に行える設計に変更しています。
 
 ---
 
-### トランザクションによるデータの整合性確保
+## 4. 技術的工夫・トラブルシューティング
 
-「ログの新規追加」と「ユーザー情報のステータス更新」という2つのDB書き込み操作が発生する際、途中でエラーが起きた場合のデータ不整合を防ぐため、処理の最後に1回の `db.commit()` で同時に確定するトランザクション設計を採用しました。
+### 1. RESTful設計へのリファクタリング
+
+初期設計：
+```
+GET /api/get_in_users
+```
+
+改善後：
+```
+GET /api/users?status=in
+```
+
+改善ポイント：
+
+- 動詞を排除しリソース指向へ変更
+- 単一エンドポイントで汎用的な取得を実現
+- 拡張性の向上
 
 ---
 
-### Pydantic V2によるレスポンスの安全性向上
+### 2. トランザクション設計による整合性確保
 
-APIのレスポンス時にパスワード等の機密情報が漏洩しないよう、エンドポイントのデコレータに `response_model` を明示的に指定。  
+課題：
 
-DBモデル（SQLAlchemy）からPydanticスキーマへ変換する際、自動的に機密情報を除外する安全な構成を徹底しました。
+- ログ追加
+- ユーザーステータス更新
+
+2つのDB操作が存在。
+
+対策：
+
+- 最後に1回の `db.commit()` を実行
+- トランザクション単位で確定
+- データ不整合を防止
 
 ---
 
-### 依存ライブラリのバージョン競合の解決
+### 3. Pydantic V2によるレスポンス安全化
 
-開発中、`passlib` と最新の `bcrypt (v4.0+)` の間で `AttributeError` が発生する相性問題に直面しました。  
+- `response_model` を明示指定
+- パスワード等の機密情報を自動除外
+- ORM → Schema 変換時に安全性担保
 
-エラーログから原因を特定し、`bcrypt` のバージョンを `3.2.0` に固定することで解決しました。
+---
+
+### 4. bcrypt バージョン競合問題
+
+発生問題：
+
+- `passlib` と `bcrypt v4.0+` の互換性問題
+- `AttributeError` 発生
+
+解決策：
+
+- `bcrypt==3.2.0` に固定
+- 依存バージョンを明示管理
 
 ---
 
@@ -113,106 +198,114 @@ DBモデル（SQLAlchemy）からPydanticスキーマへ変換する際、自動
 
 ```bash
 web-app/
-├── backend/                # FastAPI / SQLAlchemy
-│   ├── main.py             # アプリケーションエントリポイント / ルーティング
-│   ├── database.py         # DB接続設定・セッション管理
-│   ├── models.py           # DBテーブル定義 (SQLAlchemy Models)
-│   ├── services.py         # ビジネスロジック・認証処理・CRUD操作
-│   ├── schemas.py          # データバリデーション・シリアライズ (Pydantic)
-│   ├── .env.example        # 環境変数テンプレート
-│   └── requirements.txt    # 依存ライブラリ一覧
-└── frontend/               # React / Node.js
+├── backend/
+│   ├── main.py
+│   ├── database.py
+│   ├── models.py
+│   ├── services.py
+│   ├── schemas.py
+│   ├── .env.example
+│   └── requirements.txt
+└── frontend/
     ├── src/
-    │   ├── components/     # UIコンポーネント
-    │   └── App.js          # メインロジック
+    │   ├── components/
+    │   └── App.js
     └── package.json
 ```
 
 ---
 
-## 6. セットアップと実行方法
+## 6. セットアップ方法
 
-### バックエンド (Local)
+### バックエンド（ローカル環境）
 
 ```bash
-# 1. ディレクトリ移動
+# 1. 移動
 cd backend
 
-# 2. 仮想環境の作成とアクティベート
+# 2. 仮想環境
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. 依存関係のインストール
+# 3. 依存インストール
 pip install -r requirements.txt
 
-# 4. 環境変数の設定
-# .env.example をコピーして .env を作成し、SECRET_KEY等を設定してください
+# 4. 環境変数設定
+# .env.example をコピーして .env を作成
 
-# 5. データベースのマイグレーション
+# 5. マイグレーション
 alembic upgrade head
 
 # 6. サーバー起動
 fastapi dev main.py
 ```
 
-APIドキュメント (Swagger UI):  
+Swagger UI:
+```
 http://localhost:8000/docs
+```
 
 ---
 
-## 7. 今後の展望 (Roadmap)
-
-本番運用に向けて、ユーザビリティと管理機能を強化する以下の機能を実装予定です。
+## 7. Roadmap（今後の展望）
 
 ---
 
-### 短期的な目標（機能強化）
+### ■ 短期目標
 
-#### Discord Webhook連携
+#### 1. Discord Webhook連携
 
-入退室ログが作成されたタイミングで、サークルのDiscordサーバーへリアルタイム通知を送信。  
-「アプリを開かなくても誰が来たかわかる」状態を目指します。
-
-#### Roleベースの権限管理 (RBAC)
-
-`admin` 権限を持つユーザーのみがアクセスできる管理画面の実装。  
-
-- 他ユーザーの打刻修正機能（打刻忘れ対応）
-- ユーザーアカウントの管理機能
+- 入退室ログ作成時に自動通知
+- アプリを開かなくても在室状況確認可能
 
 ---
 
-### 中長期的な目標（サービス拡大・UX向上）
+#### 2. RBAC（Role Based Access Control）
 
-#### グループ機能（マルチテナント化）
-
-現在は単一のサークル向けですが、複数の団体（他のサークル、ゼミ、研究室など）がそれぞれ独立して利用できるグループ機能を実装予定です。
-
-これにより、大学内の他のコミュニティにもサービスを展開し、より多くの学生の課題解決を目指すプラットフォームへと拡張させます。
+- admin専用管理画面
+- 打刻修正機能
+- ユーザー管理機能
 
 ---
 
-#### ダッシュボード・統計機能
+### ■ 中長期目標
 
-個人の活動時間や、部室の混雑時間帯をグラフ化し、活動状況を可視化することで部員のモチベーション向上に繋げます。
+#### 1. マルチテナント化（グループ機能）
 
----
-
-#### IoT・ハードウェア連携 (Raspberry Pi + NFC)
-
-学生証（ICカード）をタッチするだけで入退室打刻が完了する物理デバイスの開発。
-
-スマホを取り出してログインする手間を省略し、よりシームレスな利用体験を提供します。
+- 複数団体対応
+- サークル / ゼミ / 研究室対応
+- プラットフォーム化
 
 ---
 
-#### ネットワーク制限による不正打刻防止
+#### 2. ダッシュボード・統計機能
 
-部室のWi-Fi経由のリクエストのみを受け付ける（IPアドレス制限等）ことで、部室外からの不正な「エア入室」を防止する仕組みを検討中です。
+- 個人活動時間の可視化
+- 混雑時間帯の分析
+- モチベーション向上
+
+---
+
+#### 3. IoT連携（Raspberry Pi + NFC）
+
+- ICカードタッチで打刻
+- ログイン不要
+- UX向上
+
+---
+
+#### 4. 不正打刻防止（ネットワーク制限）
+
+- 部室Wi-Fi経由のみ受付
+- IP制限導入
+- エア入室防止
 
 ---
 
 ## 8. プロジェクト情報
 
-- **Author:** Kota-James  
-- **GitHub:** https://github.com/Kota-James
+- **Author**
+  - Kota-James
+
+- **GitHub**
+  - https://github.com/Kota-James
