@@ -77,8 +77,8 @@ erDiagram
         string original_id "indexed"
         string display_name "indexed"
 
-        string role "default: user (master/admin/user)"
-        string status "default: out (in/out/away), indexed"
+        string role "master/admin/user, default: user"
+        string status "in/out/away, default: out, indexed"
         string color_code "default: blue"
         string nfc_card_id "unique, indexed, nullable"
         boolean is_deleted "default: false"
@@ -89,16 +89,17 @@ erDiagram
 
     LOGS {
         int id PK
-        int owner_id FK
+        int owner_id FK "references USERS(id)"
 
-        string action "indexed (enter/exit/go_out/return)"
-        string place "indexed, default empty"
-        string note "default empty"
+        string action "enter/exit/go_out/return, indexed"
+        string place "indexed, default: empty string"
+        string note "default: empty string"
 
         datetime date_created_log "timezone, server_default=now()"
         datetime date_last_updated_log "timezone, auto update"
     }
 ```
+
 
 
 ---
@@ -167,7 +168,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. 環境変数設定
-# .env.example をコピーして .env を作成
+# .env.example をコピー
+cp .env.example .env
+
 
 # 5. マイグレーション
 alembic upgrade head
