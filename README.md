@@ -1,7 +1,5 @@
 # Imasu - サークル向け入退室管理アプリ (Backend)
 
----
-
 ## 1. プロジェクト概要
 
 > **「今、誰が部室にいるかわからない」**
@@ -25,15 +23,11 @@
 ### ■ 主要機能
 
 ### 1. ユーザー認証・管理
-
 - JWT（JSON Web Token）によるステートレス認証
 - ユーザー登録・プロフィール更新
-- ロール管理（admin / user）
-
----
+- ロール管理（master / admin / user）
 
 ### 2. 入退室ログ管理（CRUD）
-
 - アクション記録  
   - `enter`
   - `exit`
@@ -41,26 +35,18 @@
   - `return`
 - 自身のログ履歴取得
 
----
-
 ### 3. ステータス自動連動
-
 - ログ作成と同時にユーザーステータスを更新
   - `in`
   - `out`
   - `away`
 - ビジネスロジック層で一元管理
 
----
-
 ### 4. 柔軟なユーザー検索
-
-- クエリパラメータによるフィルタリング取得
+- クエリパラメータによるフィルタリング取得  
   - 例：`GET /api/users?status=in`
 
----
-
-## 技術スタック
+### ■ 技術スタック
 
 - **Language**
   - Python 3.12
@@ -92,44 +78,42 @@
 ## 3. データベース設計（ER図）
 
 ### ■ 設計方針
-
-- USERS と LOGS は **1対多**
+- USERS と LOGS は 1対多
 - ユーザーは複数のログを保持
 
 ```mermaid
 erDiagram
-    USERS ||--o{ LOGS : "has"
+    USERS ||--o{ LOGS : has
 
     USERS {
-        int id PK "primary key, auto increment"
-        string email "unique, indexed"
+        int id PK
+        string email unique indexed
         string hashed_password
-        string original_id "indexed"
-        string display_name "indexed"
+        string original_id indexed
+        string display_name indexed
 
-        string role "default='user' (master/admin/user)"
-        string status "default='out' (in/out/away), indexed"
-        string color_code "default='#3b82f6'"
-        string nfc_card_id "unique, indexed, nullable"
-        boolean is_deleted "default=false (logical delete)"
+        string role default user
+        string status default out indexed
+        string color_code default #3b82f6
+        string nfc_card_id unique indexed nullable
+        boolean is_deleted default false
 
-        datetime date_created "timezone, server_default=now()"
-        datetime date_last_updated "timezone, auto update"
+        datetime date_created timezone
+        datetime date_last_updated timezone auto_update
     }
 
     LOGS {
-        int id PK "primary key"
-        int owner_id FK "references users.id"
+        int id PK
+        int owner_id FK
 
-        string action "indexed (enter/exit/go_out/return)"
-        string place "indexed, default=''"
-        string note "default=''"
+        string action indexed
+        string place indexed
+        string note
 
-        datetime date_created_log "timezone, server_default=now()"
-        datetime date_last_updated_log "timezone, auto update"
+        datetime date_created_log timezone
+        datetime date_last_updated_log timezone auto_update
     }
 ```
-
 
 ---
 
@@ -148,47 +132,32 @@ GET /api/users?status=in
 ```
 
 改善ポイント：
-
 - 動詞を排除しリソース指向へ変更
 - 単一エンドポイントで汎用的な取得を実現
 - 拡張性の向上
 
----
-
 ### 2. トランザクション設計による整合性確保
 
 課題：
-
 - ログ追加
 - ユーザーステータス更新
 
-2つのDB操作が存在。
-
 対策：
-
 - 最後に1回の `db.commit()` を実行
 - トランザクション単位で確定
 - データ不整合を防止
 
----
-
 ### 3. Pydantic V2によるレスポンス安全化
-
 - `response_model` を明示指定
 - パスワード等の機密情報を自動除外
 - ORM → Schema 変換時に安全性担保
 
----
-
 ### 4. bcrypt バージョン競合問題
-
 発生問題：
-
 - `passlib` と `bcrypt v4.0+` の互換性問題
 - `AttributeError` 発生
 
 解決策：
-
 - `bcrypt==3.2.0` に固定
 - 依存バージョンを明示管理
 
@@ -197,7 +166,7 @@ GET /api/users?status=in
 ## 5. ディレクトリ構成
 
 ```bash
-web-app/
+Imasu/
 ├── backend/
 │   ├── main.py
 │   ├── database.py
@@ -247,62 +216,51 @@ http://localhost:8000/docs
 
 ---
 
-## 7. Roadmap（今後の展望）
+## 7. Live Demo
+
+- **Backend API:** （デプロイ後に記載予定）
+- **Frontend:** （デプロイ後に記載予定）
 
 ---
+
+## 8. Roadmap（今後の展望）
 
 ### ■ 短期目標
 
 #### 1. Discord Webhook連携
-
 - 入退室ログ作成時に自動通知
 - アプリを開かなくても在室状況確認可能
 
----
-
 #### 2. RBAC（Role Based Access Control）
-
 - admin専用管理画面
 - 打刻修正機能
 - ユーザー管理機能
 
----
-
 ### ■ 中長期目標
 
 #### 1. マルチテナント化（グループ機能）
-
 - 複数団体対応
 - サークル / ゼミ / 研究室対応
 - プラットフォーム化
 
----
-
 #### 2. ダッシュボード・統計機能
-
 - 個人活動時間の可視化
 - 混雑時間帯の分析
 - モチベーション向上
 
----
-
 #### 3. IoT連携（Raspberry Pi + NFC）
-
 - ICカードタッチで打刻
 - ログイン不要
 - UX向上
 
----
-
 #### 4. 不正打刻防止（ネットワーク制限）
-
 - 部室Wi-Fi経由のみ受付
 - IP制限導入
 - エア入室防止
 
 ---
 
-## 8. プロジェクト情報
+## 9. プロジェクト情報
 
 - **Author**
   - Kota-James
