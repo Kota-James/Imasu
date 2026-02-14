@@ -39,5 +39,21 @@ class User(_UserBase):  # output
 class Token(_pydantic.BaseModel):
     access_token: str
     token_type: str
+    
 
+# Logs
+class _LogBase(_pydantic.BaseModel):
+    action: str
+    place: str | None = None
+    note: str | None = None
 
+class LogCreate(_LogBase):
+    pass
+
+class Log(_LogBase):
+    id: int
+    owner_id: int
+    date_created_log: _dt.datetime
+    date_last_updated_log: _dt.datetime
+
+    model_config = _pydantic.ConfigDict(from_attributes=True)

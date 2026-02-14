@@ -3,7 +3,7 @@ import fastapi as _fastapi
 import fastapi.security as _security
 import sqlalchemy.orm as _orm
 
-import services as _services, schemas as _schemas
+import services as _services, schemas as _schemas, models as _models
 
 app = _fastapi.FastAPI()
 
@@ -45,3 +45,25 @@ def update_user_profile(
     pass
     return _services.update_user_profile(db=db, user=current_user, user_update=user_update)
 
+@app.post("/api/users/me/logs", response_model=_schemas.Log)
+def create_user_log(
+        log_create: _schemas.LogCreate,
+        user: _models.User = _fastapi.Depends(_services.get_current_user),
+        db: _orm.Session = _fastapi.Depends(_services.get_db), 
+    ):
+    return _services.create_user_log(user=user, db=db, log_create=log_create)
+
+@app.get("/api/users/me/logs", response_model=List[_schemas.Log])
+def get_user_logs(
+    user: _schemas.User = _fastapi.Depends(_services.get_current_user),
+    db: _orm.Session = _fastapi.Depends(_services.get_db),
+):
+    return _services.get_user_logs(user=user, db=db)
+
+@app.get("/api/users", response_model=List[_schemas.User])
+def get_users(
+    status: str | None = None, 
+    user: _schemas.User = _fastapi.Depends(_services.get_current_user),
+    db: _orm.Session = _fastapi.Depends(_services.get_db),
+):
+    return _services.get_users(db=db, status=status)

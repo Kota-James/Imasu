@@ -89,3 +89,30 @@ def update_user_profile(db: _orm.Session, user: _models.User, user_update: _sche
     db.refresh(user)
 
     return user
+
+def create_user_log(user: _models.User, db: _orm.Session,  log_create: _schemas.LogCreate):
+    log_obj = _models.Log(**log_create.model_dump(), owner_id=user.id)
+
+    status_map = {
+        "enter": "in",
+        "return": "in",
+        "exit": "out",
+        "go_out": "away"
+    }
+    if log_create.action in status_map:
+        user.status = status_map[log_create.action]
+
+    db.add(log_obj)
+    db.commit()
+    db.refresh(log_obj)
+    return log_obj
+
+def get_user_logs(user: _schemas.User, db: _orm.Session):
+    logs = db.query(_models.Log).filter_by(owner_id=user.id).all()
+    return logs
+
+def get_users(db: _orm.Session, status: str | None = None):
+    query = db.query(_models.User)
+    if status:
+        query = query.filter_by(status=status)
+    return query.all()
