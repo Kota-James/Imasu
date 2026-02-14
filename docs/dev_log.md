@@ -99,24 +99,37 @@
 ```mermaid
 erDiagram
     USERS ||--o{ LOGS : "has"
+
     USERS {
-        int id PK
-        string email
+        int id PK "primary key, auto increment"
+        string email "unique, indexed"
         string hashed_password
-        string original_id "学籍番号など(String型)"
-        string display_name
-        string status "in / out / away"
-        string role "admin / user"
-        datetime date_created
+        string original_id "indexed"
+        string display_name "indexed"
+
+        string role "default='user' (master/admin/user)"
+        string status "default='out' (in/out/away), indexed"
+        string color_code "default='#3b82f6'"
+        string nfc_card_id "unique, indexed, nullable"
+        boolean is_deleted "default=false (logical delete)"
+
+        datetime date_created "timezone, server_default=now()"
+        datetime date_last_updated "timezone, auto update"
     }
+
     LOGS {
-        int id PK
-        int user_id FK
-        string action "enter / exit / go_out / return"
-        datetime date_created
-        datetime date_last_updated
+        int id PK "primary key"
+        int owner_id FK "references users.id"
+
+        string action "indexed (enter/exit/go_out/return)"
+        string place "indexed, default=''"
+        string note "default=''"
+
+        datetime date_created_log "timezone, server_default=now()"
+        datetime date_last_updated_log "timezone, auto update"
     }
 ```
+
 
 ---
 
