@@ -87,33 +87,34 @@ erDiagram
 
     USERS {
         int id PK
-        string email unique indexed
+        string email "unique, indexed"
         string hashed_password
-        string original_id indexed
-        string display_name indexed
+        string original_id "indexed"
+        string display_name "indexed"
 
-        string role default user
-        string status default out indexed
-        string color_code default #3b82f6
-        string nfc_card_id unique indexed nullable
-        boolean is_deleted default false
+        string role "default: user (master/admin/user)"
+        string status "default: out (in/out/away), indexed"
+        string color_code "default: blue"
+        string nfc_card_id "unique, indexed, nullable"
+        boolean is_deleted "default: false"
 
-        datetime date_created timezone
-        datetime date_last_updated timezone auto_update
+        datetime date_created "timezone, server_default=now()"
+        datetime date_last_updated "timezone, auto update"
     }
 
     LOGS {
         int id PK
         int owner_id FK
 
-        string action indexed
-        string place indexed
-        string note
+        string action "indexed (enter/exit/go_out/return)"
+        string place "indexed, default empty"
+        string note "default empty"
 
-        datetime date_created_log timezone
-        datetime date_last_updated_log timezone auto_update
+        datetime date_created_log "timezone, server_default=now()"
+        datetime date_last_updated_log "timezone, auto update"
     }
 ```
+
 
 ---
 
