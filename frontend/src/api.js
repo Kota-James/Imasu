@@ -2,7 +2,8 @@ import axios from 'axios';
 
 // 1. カスタムAxiosの作成（ベースURLをFastAPIのアドレスに固定）
 const api = axios.create({
-  baseURL: 'http://localhost:8000', // バックエンドのURL
+  // baseURL: 'http://localhost:8000', // バックエンドのURL
+  baseURL: 'https://imasu-api.onrender.com'
 });
 
 // 2. リクエストを送信する「直前」に割り込む処理（インターセプター）
