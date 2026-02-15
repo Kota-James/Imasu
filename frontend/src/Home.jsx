@@ -92,8 +92,8 @@ function Home() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <button onClick={() => handleAction('enter')} className="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">入室する</button>
           <button onClick={() => handleAction('exit')} className="bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">退室する</button>
-          <button onClick={() => handleAction('go_out')} className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">外出する</button>
-          <button onClick={() => handleAction('return')} className="bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">戻る</button>
+          <button onClick={() => handleAction('go_out')} className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">一時外出する</button>
+          <button onClick={() => handleAction('return')} className="bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-bold shadow-sm transition-colors">再入室する</button>
         </div>
 
         {/* 現在部室にいるメンバー一覧 */}

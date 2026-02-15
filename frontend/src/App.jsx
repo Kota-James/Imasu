@@ -7,7 +7,7 @@ import Profile from './Profile';
 import Logs from './Logs';
 import Register from './Register';
 
-// ログインしていない人を弾く関所
+// ログインしていない人を弾く
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/login" replace />;
@@ -58,10 +58,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        {/* 以下、関所(ProtectedRoute)に守られた画面たち */}
+        {/* 以下、ログイン済みなら見ることが入ることができる */}
         <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        {/* ※Logs画面は後で作りますが、とりあえず/に飛ばすようにしておきます */}
         <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>

@@ -12,7 +12,6 @@ function Logs() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        // 自分の過去のログを全件取得するAPI
         const response = await api.get('/api/users/me/logs');
         setLogs(response.data);
       } catch (error) {

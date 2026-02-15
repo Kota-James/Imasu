@@ -1,10 +1,9 @@
 // src/Login.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from './api'; // さっき作った最強の通信ルール
+import api from './api';
 
 function Login() {
-  // 入力された値を保存する「箱（State）」
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,13 +17,12 @@ function Login() {
     setError('');       // エラーメッセージをリセット
 
     try {
-      // 【超重要】FastAPIの仕様に合わせてFormデータを作成する
+      // FastAPIの仕様に合わせてFormデータを作成する
       const params = new URLSearchParams();
-      params.append('username', email); // キーは必ず 'username' にする！
+      params.append('username', email);
       params.append('password', password);
 
       // バックエンドのトークン発行URLへPOSTリクエスト
-      // （※URLが /api/token ではない場合は、中澤さんの環境に合わせて変更してください）
       const response = await api.post('/api/token', params);
 
       // 成功したら、ローカルストレージにトークンを保存
