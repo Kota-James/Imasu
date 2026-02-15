@@ -8,7 +8,11 @@ import os
 
 import database as _database, models as _models, schemas as _schemas
 oauth2schema = _security.OAuth2PasswordBearer(tokenUrl="/api/token")
-JWT_SECRET = os.getenv("JWT_SECRET", "default-secret-key")
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET environment variable is required")
+
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
 def create_database():
@@ -27,7 +31,9 @@ def get_user_by_email(email: str, db: _orm.Session):
 def create_user(user: _schemas.UserCreate, db: _orm.Session):
     user_obj = _models.User(
         email=user.email, 
-        hashed_password=_hash.bcrypt.hash(user.password)
+        hashed_password=_hash.bcrypt.hash(user.password), 
+        display_name=user.display_name, 
+        original_id=user.original_id
     )
     db.add(user_obj)
     db.commit()

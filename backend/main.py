@@ -2,10 +2,19 @@ from typing import List
 import fastapi as _fastapi
 import fastapi.security as _security
 import sqlalchemy.orm as _orm
+from fastapi.middleware.cors import CORSMiddleware
 
 import services as _services, schemas as _schemas, models as _models
 
 app = _fastapi.FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"], # GET, POST, PUT, DELETEなど全て許可
+    allow_headers=["*"], # 全てのHTTPヘッダー（Authorization等）を許可
+)
 
 @app.post("/api/users", response_model=_schemas.Token)
 def create_user(user: _schemas.UserCreate, 

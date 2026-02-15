@@ -8,6 +8,8 @@ class _UserBase(_pydantic.BaseModel):
 ### Input Schemas
 class UserCreate(_UserBase):    # creating account
     password: str
+    display_name: str | None = None
+    original_id: str | None = None
 
 class UserProfileUpdate(_pydantic.BaseModel):
     display_name: str | None = None

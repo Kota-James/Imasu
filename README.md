@@ -1,70 +1,72 @@
-# Imasu - サークル向け入退室管理アプリ (Backend)
+# Imasu - サークル向け入退室管理アプリ
 
-## 1. プロジェクト概要
+<p align="center">
+  <strong>「今、誰が部室にいるかわからない」を解決する</strong>
+</p>
 
-> **「今、誰が部室にいるかわからない」**
+---
 
-本プロジェクトは、所属サークルにおける実際の組織運営上の課題を解決するために開発した  
-**WebアプリケーションのバックエンドAPI**です。
+## プロジェクト概要
+
+本プロジェクトは、所属サークルにおける実際の組織運営上の課題を解決するために開発したWebアプリケーションです。
 
 - FastAPIチュートリアルで学んだ基礎をベースに開発
 - 要件定義・DB設計・API設計をすべてゼロから実施
 - 実際のサークル運営を想定した実用的なユースケース
 
-現在は **MVP（Minimum Viable Product）** として、以下にフォーカスしています。
+現在は **MVP（Minimum Viable Product）** として、以下にフォーカスしています：
 
 - 入退室記録の管理
 - 在室状況のリアルタイム可視化
 
 ---
 
-## 2. 実装機能と技術スタック
+## 主要機能
 
-### ■ 主要機能
-
-### 1. ユーザー認証・管理
-- JWT（JSON Web Token）によるステートレス認証
-- ユーザー登録・プロフィール更新
-- ロール管理（master / admin / user）
-
-### 2. 入退室ログ管理（CRUD）
-- アクション記録  
-  - `enter`
-  - `exit`
-  - `go_out`
-  - `return`
-- 自身のログ履歴取得
-
-### 3. ステータス自動連動
-- ログ作成と同時にユーザーステータスを更新
-  - `in`
-  - `out`
-  - `away`
-- ビジネスロジック層で一元管理
-
-### 4. 柔軟なユーザー検索
-- クエリパラメータによるフィルタリング取得  
-  - 例：`GET /api/users?status=in`
-
-## ■ Tech Stack
-
-- language: Python 3.12
-- framework: FastAPI
-- database: SQLite
-- orm: SQLAlchemy
-- migration: Alembic
-- schema validation: Pydantic V2
-- authentication: JWT (PyJWT) / bcrypt (passlib)
-- frontend: React
-- dev environment: Windows 11 / WSL2
+| 機能 | 説明 |
+|------|------|
+| **ユーザー認証** | JWTによるステートレス認証、ロール管理（master/admin/user） |
+| **入退室ログ** | `enter` / `exit` / `go_out` / `return` のアクション記録 |
+| **ステータス連動** | ログ作成と同時にユーザー状態（`in`/`out`/`away`）を自動更新 |
+| **ユーザー検索** | クエリパラメータで柔軟にフィルタリング（例: `GET /api/users?status=in`） |
 
 ---
 
-## 3. データベース設計（ER図）
+## Tech Stack
 
-### ■ 設計方針
-- USERS と LOGS は 1対多
-- ユーザーは複数のログを保持
+### Backend
+
+| カテゴリ | 技術 |
+|----------|------|
+| Language | Python 3.12 |
+| Framework | FastAPI |
+| Database | SQLite |
+| ORM | SQLAlchemy |
+| Migration | Alembic |
+| Validation | Pydantic V2 |
+| Auth | JWT (PyJWT) / bcrypt (passlib) |
+
+### Frontend
+
+| カテゴリ | 技術 |
+|----------|------|
+| Framework | React 19 |
+| Build Tool | Vite |
+| Styling | Tailwind CSS v4 |
+| Routing | React Router DOM v7 |
+| HTTP Client | Axios |
+
+### Development
+
+| 環境 | ツール |
+|------|------|
+| OS | Windows 11 / WSL2 |
+
+---
+
+## データベース設計（ER図）
+
+**設計方針:** USERS と LOGS は 1対多のリレーション
 
 ```mermaid
 erDiagram
@@ -100,61 +102,128 @@ erDiagram
     }
 ```
 
+---
 
+## 技術的工夫・トラブルシューティング
+
+### Backend
+
+<details>
+<summary><strong>1. トランザクション設計によるデータ整合性の確保</strong></summary>
+
+入退室ロジックにおいて、「ログの記録」と「ユーザー状態（in/out等）の更新」に不整合が生じるのを防ぐための設計を行いました。
+
+- **トランザクション単位での確定:** 「ログ追加」と「ステータス更新」の2つのDB操作を準備し、最後に1回の `db.commit()` で同時に確定
+- **辞書マッピングの活用:** `action` → `status` の変換に `status_map` を使用し、冗長な `if-elif` を排除
+
+</details>
+
+<details>
+<summary><strong>2. RESTful原則に基づいたAPI設計へのリファクタリング</strong></summary>
+
+初期段階では機能ごとにエンドポイントを作成していましたが、APIの拡張性と可読性を高めるためリソース指向へリファクタリングを行いました。
+
+| Before | After |
+|--------|-------|
+| `GET /api/get_in_users` | `GET /api/users?status=in` |
+
+**改善ポイント:** 動詞を排除し、リソース指向のURL設計を採用。クエリパラメータにより1つのエンドポイントで柔軟な絞り込みに対応。
+
+</details>
+
+<details>
+<summary><strong>3. セキュリティと権限を考慮したエンドポイントの分離</strong></summary>
+
+ユーザー情報の更新機能において、「誰が・どのデータを変更して良いか」という権限の境界線を明確にしました。
+
+- **関心の分離:** プロフィール情報（表示名、テーマカラー）とシステム情報（学籍番号、NFC ID）の更新エンドポイントを分離
+- **セキュリティ向上:** ユーザーが重要なシステムデータを上書きする脆弱性を防止
+
+</details>
+
+<details>
+<summary><strong>4. Pydantic V2を活用したセキュアで柔軟なデータハンドリング</strong></summary>
+
+フレームワークの機能を最大限に活用し、セキュアかつフロントエンドに優しいAPIを構築しました。
+
+- **機密情報の自動除外:** `response_model` 指定により、パスワードハッシュ等をレスポンスから自動除外
+- **Partial Update:** `str | None = None` で部分更新を実現、未送信項目は更新しない
+
+</details>
+
+<details>
+<summary><strong>5. 依存ライブラリのバージョン競合解決</strong></summary>
+
+- **発生問題:** `passlib` と `bcrypt` (v4.0+) の非互換性により `AttributeError` が発生
+- **解決策:** `bcrypt==3.2.0` にバージョン固定して安定稼働を実現
+
+</details>
+
+### Frontend
+
+<details>
+<summary><strong>6. 新規登録と同時に自動ログインするUX設計</strong></summary>
+
+バックエンドの新規登録APIが直接JWTトークンを返す仕様を活かし、「アカウント登録と同時に自動ログインし、シームレスにホーム画面へ遷移する」フローを実装。ユーザーが登録後に再度ログインする手間を排除しました。
+
+</details>
+
+<details>
+<summary><strong>7. Tailwind CSSの動的クラス名制約の回避</strong></summary>
+
+Tailwind CSSはビルド時に静的解析を行うため、`bg-${color}` のような動的クラス名生成は機能しません。ユーザーが自由に選択したテーマカラー（HEXコード）をUIに反映するため、インラインスタイル（`style={{}}`）を併用するアプローチを採用しました。
+
+```jsx
+// × 動作しない例
+className={`bg-[${user.color_code}]`}
+
+// ○ インラインスタイルで解決
+style={{ backgroundColor: user.color_code }}
+```
+
+</details>
+
+<details>
+<summary><strong>8. AxiosインターセプターによるJWT自動付与</strong></summary>
+
+全てのAPIリクエストに対して認証トークンを手動で付与するのは煩雑かつバグの原因となります。Axiosのリクエストインターセプターを設定し、`localStorage`から取得したトークンを`Authorization`ヘッダーに自動付与する共通処理を実装しました。
+
+</details>
 
 ---
 
-## 4. 技術的工夫・トラブルシューティング
-
-### 1. トランザクション設計によるデータ整合性の確保とロジック最適化
-入退室ロジックにおいて、「ログの記録」と「ユーザー状態（in/out等）の更新」に不整合が生じるのを防ぐための設計を行いました。
-- **トランザクション単位での確定:** 「ログ追加」と「ステータス更新」という2つのDB操作を準備したのち、最後に1回の `db.commit()` で同時に確定（セーブ）する設計を採用。途中でエラーが起きた際のデータ不整合を物理的に防止しています。
-- **辞書（マッピング）を活用した保守性の向上:** ログの `action` からユーザーの `status` を決定する際、冗長な `if-elif` 文の羅列を避け、辞書（`status_map`）を用いたマッピングを採用。将来的なステータス追加時も、辞書に1行追加するだけで対応可能な保守性の高いコードを実現しました。
-
-### 2. RESTful原則に基づいたAPI設計へのリファクタリング
-初期段階では機能ごとにエンドポイントを作成していましたが、APIの拡張性と可読性を高めるためリソース指向へリファクタリングを行いました。
-- **改善前（動詞ベース）:** `GET /api/get_in_users`
-- **改善後（名詞＋クエリパラメータ）:** `GET /api/users?status=in`
-- **改善ポイント:** 動詞を排除し、「誰の」「どのリソースか」が直感的にわかるURL設計（例: `GET /api/users/me/logs` と `POST /api/users/me/logs` の統一）を採用。また、クエリパラメータを導入したことで、1つのエンドポイントで「全件取得」から「条件絞り込み」まで汎用的に対応可能にしました。
-
-### 3. セキュリティと権限を考慮したエンドポイントの分離
-ユーザー情報の更新機能において、「誰が・どのデータを変更して良いか」という権限の境界線を明確にしました。
-- **関心の分離:** ユーザーが自由に変更できる「プロフィール情報（表示名、テーマカラー等）」と、システムや管理者が扱うべき「システム情報（学籍番号、NFC ID等）」の更新エンドポイントとPydanticスキーマを明確に分離。
-- **セキュリティ向上:** これにより、ユーザーがプロフィール更新APIを叩いた際に、誤って（あるいは意図的に）重要なシステムデータを上書きしてしまう脆弱性を防いでいます。
-
-### 4. Pydantic V2を活用したセキュアで柔軟なデータハンドリング
-フレームワークの機能を最大限に活用し、セキュアかつフロントエンドに優しいAPIを構築しました。
-- **機密情報の自動除外 (レスポンスの安全化):** APIのデコレータに `response_model` を明示指定。DBモデルにパスワードハッシュが含まれていても、JSON変換時に自動的に除外される仕組みを確立し、情報漏洩を防止しています。
-- **Partial Update (部分更新) の実現:** 更新用スキーマにおいて各フィールドを `str | None = None` で定義し、送信されなかった項目は更新しない（無視する）設計を採用。フロントエンド側の通信量と実装コストを削減しました。
-
-### 5. 依存ライブラリのバージョン競合解決 (トラブルシューティング)
-- **発生問題:** 認証機能の実装中、`passlib` と最新の `bcrypt` (v4.0+) 間の非互換性により `AttributeError` が発生し、サーバーがクラッシュする問題に直面。
-- **解決策:** エラーログから原因がライブラリ間の仕様変更にあると特定し、環境構築時に `bcrypt==3.2.0` とバージョンを明示的に固定することで解決。要件を満たしつつ安定稼働する環境を構築しました。
-
-## 5. ディレクトリ構成
+## ディレクトリ構成
 
 ```bash
 Imasu/
 ├── backend/
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── services.py
-│   ├── schemas.py
-│   ├── .env.example
+│   ├── main.py          # APIエンドポイント定義
+│   ├── database.py      # DB接続設定
+│   ├── models.py        # SQLAlchemyモデル
+│   ├── services.py      # ビジネスロジック
+│   ├── schemas.py       # Pydanticスキーマ
+│   ├── .env.example     # 環境変数サンプル
 │   └── requirements.txt
 └── frontend/
     ├── src/
-    │   ├── components/
-    │   └── App.js
-    └── package.json
+    │   ├── api.js       # Axiosインスタンス設定
+    │   ├── App.jsx      # ルーティング定義
+    │   ├── main.jsx     # エントリーポイント
+    │   ├── index.css    # グローバルスタイル
+    │   ├── Home.jsx     # ホーム画面（在室状況一覧）
+    │   ├── Login.jsx    # ログイン画面
+    │   ├── Register.jsx # 新規登録画面
+    │   ├── Profile.jsx  # プロフィール画面
+    │   └── Logs.jsx     # 入退室ログ履歴画面
+    ├── package.json
+    └── vite.config.js
 ```
 
 ---
 
-## 6. セットアップ方法
+## セットアップ方法
 
-### バックエンド（ローカル環境）
+### Backend
 
 ```bash
 # 1. 移動
@@ -168,9 +237,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. 環境変数設定
-# .env.example をコピー
 cp .env.example .env
-
 
 # 5. マイグレーション
 alembic upgrade head
@@ -179,61 +246,56 @@ alembic upgrade head
 fastapi dev main.py
 ```
 
-Swagger UI:
+👉 Swagger UI: http://localhost:8000/docs
+
+### Frontend
+
+```bash
+# 1. 移動
+cd frontend
+
+# 2. 依存インストール
+npm install
+
+# 3. 開発サーバー起動
+npm run dev
 ```
-http://localhost:8000/docs
-```
+
+👉 Frontend: http://localhost:5173
+
+> ⚠️ バックエンドAPI（`http://localhost:8000`）が起動している必要があります
 
 ---
 
-## 7. Live Demo
+## Live Demo
 
-- **Backend API:** （デプロイ後に記載予定）
-- **Frontend:** （デプロイ後に記載予定）
-
----
-
-## 8. Roadmap（今後の展望）
-
-### ■ 短期目標
-
-#### 1. Discord Webhook連携
-- 入退室ログ作成時に自動通知
-- アプリを開かなくても在室状況確認可能
-
-#### 2. RBAC（Role Based Access Control）
-- admin専用管理画面
-- 打刻修正機能
-- ユーザー管理機能
-
-### ■ 中長期目標
-
-#### 1. マルチテナント化（グループ機能）
-- 複数団体対応
-- サークル / ゼミ / 研究室対応
-- プラットフォーム化
-
-#### 2. ダッシュボード・統計機能
-- 個人活動時間の可視化
-- 混雑時間帯の分析
-- モチベーション向上
-
-#### 3. IoT連携（Raspberry Pi + NFC）
-- ICカードタッチで打刻
-- ログイン不要
-- UX向上
-
-#### 4. 不正打刻防止（ネットワーク制限）
-- 部室Wi-Fi経由のみ受付
-- IP制限導入
-- エア入室防止
+| サービス | URL |
+|----------|-----|
+| Backend API | （デプロイ後に記載予定） |
+| Frontend | （デプロイ後に記載予定） |
 
 ---
 
-## 9. プロジェクト情報
+## Roadmap
 
-- **Author**
-  - Kota-James
+### 短期目標
 
-- **GitHub**
-  - https://github.com/Kota-James
+| 機能 | 説明 |
+|------|------|
+| Discord Webhook | 入退室ログ作成時に自動通知 |
+| RBAC | admin専用管理画面、打刻修正機能 |
+
+### 中長期目標
+
+| 機能 | 説明 |
+|------|------|
+| マルチテナント化 | 複数団体対応（サークル/ゼミ/研究室） |
+| ダッシュボード | 個人活動時間の可視化、混雑分析 |
+| IoT連携 | Raspberry Pi + NFCでICカード打刻 |
+| ネットワーク制限 | 部室Wi-Fi経由のみ受付（エア入室防止） |
+
+---
+
+## Author
+
+**Kota-James** - [GitHub](https://github.com/Kota-James)
