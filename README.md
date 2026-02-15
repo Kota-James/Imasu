@@ -238,6 +238,7 @@ pip install -r requirements.txt
 
 # 4. 環境変数設定
 cp .env.example .env
+# JWT_SECRET は必ず安全な値に変更してください
 
 # 5. マイグレーション
 alembic upgrade head
@@ -263,7 +264,7 @@ npm run dev
 
 👉 Frontend: http://localhost:5173
 
-> ⚠️ バックエンドAPI（`http://localhost:8000`）が起動している必要があります
+> ※ バックエンドAPI（`http://localhost:8000`）が起動している必要があります
 
 ---
 
