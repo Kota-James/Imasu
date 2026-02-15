@@ -4,7 +4,9 @@ import fastapi.security as _security
 import sqlalchemy.orm as _orm
 from fastapi.middleware.cors import CORSMiddleware
 
-import services as _services, schemas as _schemas, models as _models
+import services as _services, schemas as _schemas, models as _models, database as _database
+
+_models.Base.metadata.create_all(bind=_database.engine)
 
 app = _fastapi.FastAPI()
 
