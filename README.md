@@ -40,7 +40,7 @@
 |----------|------|
 | Language | Python 3.12 |
 | Framework | FastAPI |
-| Database | SQLite |
+| Database | PostgreSQL (Production) / SQLite (Development) |
 | ORM | SQLAlchemy |
 | Validation | Pydantic V2 |
 | Auth | JWT (PyJWT) / bcrypt (passlib) |
@@ -62,6 +62,16 @@
 | OS | Windows 11 / WSL2 |
 | Backend Hosting | Render |
 | Frontend Hosting | Vercel |
+
+---
+
+## デプロイメント構成
+
+本プロジェクトは以下の構成でパブリックに公開されています。GitHubへのPushをトリガーとした自動デプロイフローを構築しています。
+
+- **Frontend Hosting:** Vercel (React)
+- **Backend Hosting:** Render (FastAPI / Web Service)
+- **Managed Database:** Render PostgreSQL
 
 ---
 
@@ -188,6 +198,13 @@ style={{ backgroundColor: user.color_code }}
 <summary><strong>8. AxiosインターセプターによるJWT自動付与</strong></summary>
 
 全てのAPIリクエストに対して認証トークンを手動で付与するのは煩雑かつバグの原因となります。Axiosのリクエストインターセプターを設定し、`localStorage`から取得したトークンを`Authorization`ヘッダーに自動付与する共通処理を実装しました。
+
+</details>
+
+<details>
+<summary><strong>9. 本番環境（PostgreSQL）への自動マイグレーション</strong></summary>
+
+Renderの無料プランではSSH/Shellアクセスが制限されているため、デプロイ時に手動でDBマイグレーションを実行できません。これを解決するため、Start Commandで `alembic upgrade head` をアプリケーション起動前に実行するパイプラインを構築しました。これにより、DBスキーマの変更が常に自動で本番環境に反映される環境を実現しました。
 
 </details>
 
