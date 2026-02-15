@@ -42,7 +42,6 @@
 | Framework | FastAPI |
 | Database | SQLite |
 | ORM | SQLAlchemy |
-| Migration | Alembic |
 | Validation | Pydantic V2 |
 | Auth | JWT (PyJWT) / bcrypt (passlib) |
 
@@ -56,11 +55,13 @@
 | Routing | React Router DOM v7 |
 | HTTP Client | Axios |
 
-### Development
+### Development / Deploy
 
 | 環境 | ツール |
 |------|------|
 | OS | Windows 11 / WSL2 |
+| Backend Hosting | Render |
+| Frontend Hosting | Vercel |
 
 ---
 
@@ -240,10 +241,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # JWT_SECRET は必ず安全な値に変更してください
 
-# 5. マイグレーション
-alembic upgrade head
-
-# 6. サーバー起動
+# 5. サーバー起動
 fastapi dev main.py
 ```
 
@@ -272,8 +270,10 @@ npm run dev
 
 | サービス | URL |
 |----------|-----|
-| Backend API | （デプロイ後に記載予定） |
-| Frontend | （デプロイ後に記載予定） |
+| Frontend | https://imasu.vercel.app |
+| Backend API (Swagger UI) | https://imasu-api.onrender.com/docs |
+
+> ※ 無料プランのため、初回アクセス時は起動に数十秒かかる場合があります
 
 ---
 
